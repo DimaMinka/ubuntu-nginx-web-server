@@ -1,11 +1,11 @@
-# Ubuntu optimized configuration with EasyEngine
+# Optimized configuration for Ubuntu server with EasyEngine
 
 * * *
 
 ## Server Stack
 
-- Ubuntu 16/18.04 LTS
-- Nginx 1.14.x
+- Ubuntu 16.04/18.04 LTS
+- Nginx 1.15.x / 1.14.x
 - PHP-FPM 7/7.1/7.2
 - MariaDB 10.3
 - REDIS 4.0
@@ -23,13 +23,13 @@ Configuration files with comments and informations available by following the li
 #### System update and packages cleanup
 
 ```bash
-apt-get update && apt-get upgrade -y && apt-get autoremove -y && apt-get clean
+apt-get update && apt-get upgrade -y && apt-get autoremove --purge -y && apt-get clean
 ```
 
 #### Install useful packages
 
 ```bash
-sudo apt install haveged curl git unzip zip fail2ban htop nload nmon ntp -y
+sudo apt-get install haveged curl git unzip zip fail2ban htop nload nmon ntp gnupg gnupg2 wget pigz tree ccze  -y
 ```
 
 #### Tweak Kernel & Increase open files limits
@@ -38,8 +38,8 @@ sudo apt install haveged curl git unzip zip fail2ban htop nload nmon ntp -y
 
 ```bash
 modprobe tcp_htcp
-wget -O /etc/sysctl.conf https://virtubox.github.io/ubuntu-nginx-web-server/files/etc/sysctl.conf
-sysctl -p
+wget -O /etc/sysctl.d/60-ubuntu-nginx-web-server.conf https://virtubox.github.io/ubuntu-nginx-web-server/files/etc/sysctl.d/60-ubuntu-nginx-web-server.conf
+sysctl -e -p /etc/sysctl.d/60-ubuntu-nginx-web-server.conf
 wget -O /etc/security/limits.conf https://virtubox.github.io/ubuntu-nginx-web-server/files/etc/security/limits.conf
 ```
 
@@ -58,9 +58,8 @@ echo never > /sys/kernel/mm/transparent_hugepage/enabled
 Instructions available in [VirtuBox Knowledgebase](https://kb.virtubox.net/knowledgebase/install-latest-mariadb-release-easyengine/)
 
 ```bash
-curl -sS https://downloads.mariadb.com/MariaDB/mariadb_repo_setup \
-| sudo bash -s -- --mariadb-server-version=10.3 --skip-maxscale
-sudo apt update && sudo apt install mariadb-server percona-xtrabackup-24 -y
+bash <(wget -qO - https://downloads.mariadb.com/MariaDB/mariadb_repo_setup) --mariadb-server-version=10.3 --skip-maxscale -y
+sudo apt update && sudo apt install mariadb-server -y
 ```
 
 #### MySQL Tuning
@@ -81,7 +80,9 @@ sudo mv /var/lib/mysql/ib_logfile1 /var/lib/mysql/ib_logfile1.bak
 
 sudo service mysql start
 ```
-Increase MariaDB open files limits 
+
+Increase MariaDB open files limits
+
 ```bash
 wget -O /etc/systemd/system/mariadb.service.d/limits.conf https://virtubox.github.io/ubuntu-nginx-web-server/files/etc/systemd/system/mariadb.service.d/limits.conf
 
@@ -98,7 +99,7 @@ sudo bash -c 'echo -e "[user]\n\tname = $USER\n\temail = root@$HOSTNAME" > $HOME
 wget -qO ee rt.cx/ee && bash ee
 ```
 
-#### enable ee bash_completion 
+#### enable ee bash_completion
 
 ```bash
 source /etc/bash_completion.d/ee_auto.rc
@@ -121,10 +122,12 @@ newaliases
 #### Install Composer - Fix phpmyadmin install issue
 
 ```bash
-cd ~/
+cd ~/ ||exit
 curl -sS https://getcomposer.org/installer | php
 mv composer.phar /usr/bin/composer
-sudo -u www-data composer update -d /var/www/22222/htdocs/db/pma/
+
+chown www-data:www-data /var/www
+sudo -u www-data -H composer update -d /var/www/22222/htdocs/db/pma/
 ```
 
 #### Allow shell for www-data for SFTP usage
@@ -227,7 +230,7 @@ wget -O /etc/systemd/system/nginx.service.d/limits.conf https://virtubox.github.
 
 sudo systemctl daemon-reload
 sudo systemctl restart nginx.service
-```  
+```
 
 #### wpcommon-php7x configurations
 
@@ -266,13 +269,14 @@ WARNING : SSH Configuration with root login allowed with ed25519 & ECDSA SSH key
 #### UFW
 
 Instructions available in [VirtuBox Knowledgebase](https://kb.virtubox.net/knowledgebase/ufw-iptables-firewall-configuration-made-easier/)
+
 ```bash
-# enable ufw log - allow outgoing - deny incoming 
+# enable ufw log - allow outgoing - deny incoming
 ufw logging low
 ufw default allow outgoing
 ufw default deny incoming
 
-# SSH - DNS - HTTP/S - FTP - NTP - SNMP - Librenms - Netdata - EE Backend  
+# SSH - DNS - HTTP/S - FTP - NTP - SNMP - Librenms - Netdata - EE Backend
 ufw allow 22
 ufw allow 53
 ufw allow http
@@ -299,6 +303,7 @@ ufw enable
 ```bash
 wget -O /etc/fail2ban/filter.d/ddos.conf https://virtubox.github.io/ubuntu-nginx-web-server/files/etc/fail2ban/filter.d/ddos.conf
 wget -O /etc/fail2ban/filter.d/ee-wordpress.conf https://virtubox.github.io/ubuntu-nginx-web-server/files/etc/fail2ban/filter.d/ee-wordpress.conf
+wget -O /etc/fail2ban/filter.d/nginx-forbidden.conf https://virtubox.github.io/ubuntu-nginx-web-server/files/etc/fail2ban/filter.d/nginx-forbidden.conf
 wget -O /etc/fail2ban/jail.d/custom.conf https://virtubox.github.io/ubuntu-nginx-web-server/files/etc/fail2ban/jail.d/custom.conf
 wget -O  /etc/fail2ban/jail.d/ddos.conf https://virtubox.github.io/ubuntu-nginx-web-server/files/etc/fail2ban/jail.d/ddos.conf
 
@@ -308,24 +313,24 @@ fail2ban-client reload
 #### Secure Memcached server
 
 ```bash
-echo '-U 0' >> /etc/memcached.conf 
+echo '-U 0' >> /etc/memcached.conf
 sudo systemctl restart memcached
 ```
 
-### Optional tools
+### Optional
 
 #### ee-acme-sh
 
 [Github repository](https://virtubox.github.io/ee-acme-sh/) - Script to setup letsencrypt certificates using acme.sh on EasyEngine servers
-
-
 
 * subdomain support
 * ivp6 support
 * wildcards certificates support
 
 ```bash
-cd && bash <(wget --no-check-certificate -O - https://raw.githubusercontent.com/VirtuBox/ee-acme-sh/master/install.sh)
+wget -O install-ee-acme.sh https://raw.githubusercontent.com/VirtuBox/ee-acme-sh/master/install.sh
+chmod +x install-ee-acme.sh
+./install-ee-acme.sh
 
 # enable acme.sh & ee-acme-sh
 source .bashrc
@@ -348,18 +353,20 @@ sed -i 's/SEND_EMAIL="YES"/SEND_EMAIL="NO"/' /etc/netdata/health_alarm_notify.co
 service netdata restart
 ```
 
-#### bash-snippets
+#### cht.sh (cheat)
 
-[Github repository](https://github.com/alexanderepstein/Bash-Snippets)
+[Github repository](https://github.com/chubin/cheat.sh)
 
 ```bash
-git clone https://github.com/alexanderepstein/Bash-Snippets
-cd Bash-Snippets
-git checkout v1.22.0
-./install.sh cheat
+curl https://cht.sh/:cht.sh > /usr/bin/cht.sh
+chmod +x /usr/bin/cht.sh
+
+
+echo "alias cheat='cht.sh'" >> $HOME/.bashrc
+source $HOME/.bashrc
 ```
 
-usage : `cheat <command>`  
+usage : `cheat <command>`
 
 ```bash
 root@vps:~ cheat cat
@@ -396,12 +403,13 @@ sudo apt update
 sudo apt install ucaresystem-core -y
 ```
 
-Run server maintenance with the command : 
+Run server maintenance with the command :
+
 ```bash
 sudo ucaresystem-core
 ```
 
-### WP-CLI 
+### WP-CLI
 
 #### Add bash-completion for user www-data
 
@@ -421,6 +429,25 @@ chown www-data:www-data /var/www/.profile
 chown www-data:www-data /var/www/.bashrc
 ```
 
+### Custom Nginx error pages
+
+[Github Repository](https://github.com/alexphelps/server-error-pages)
+
+Installation
+
+```bash
+# clone the github repository
+sudo -u www-data -H git clone https://github.com/alexphelps/server-error-pages.git /var/www/error
+
+# download nginx configuration
+wget -O /etc/nginx/common/error_pages.conf https://virtubox.github.io/ubuntu-nginx-web-server/files/etc/nginx/common/error_pages.conf
+```
+
+Then include this configuration in your nginx vhost by adding the following line
+
+```bash
+include common/error_pages.conf;
+```
 
 
 Published & maintained by [VirtuBox](https://virtubox.net)
